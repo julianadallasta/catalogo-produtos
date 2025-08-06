@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liquida Cosméticos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Raleway', sans-serif;
+      background: #f6f3f0;
+      margin: 0;
+      padding: 2rem 1rem;
+      color: #3a2e2a;
+    }
+
+    h1 {
+      text-align: center;
+      color: #8c2d19;
+      font-size: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .filtros {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .filtros input,
+    .filtros select {
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+    }
+
+    .card:hover {
+      transform: scale(1.03);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .card img {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      margin-bottom: 1rem;
+      border-radius: 12px;
+    }
+
+    .card h3 {
+      margin: 0.5rem 0;
+      font-size: 1.25rem;
+      color: #5e3023;
+    }
+
+    .card p {
+      margin: 0.3rem 0;
+      font-size: 0.95rem;
+    }
+
+    .preco-de {
+      color: #a98e86;
+      font-style: italic;
+    }
+
+    .preco-por {
+      color: #c44b33;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .marca {
+      color: #805d4d;
+      font-weight: 500;
+    }
+
+    .desconto-badge {
+      position: absolute;
+      top: 10px;
+      left: -10px;
+      background: #c44b33;
+      color: white;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      border-radius: 0 8px 8px 0;
+      transform: rotate(-5deg);
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .rodape {
+      text-align: center;
+      margin-top: 3rem;
+      font-size: 0.85rem;
+      color: #999;
+    }
+
+    .paginacao {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .paginacao button {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      background: #8c2d19;
+      color: white;
+      cursor: pointer;
+    }
+
+    .paginacao button.active {
+      background: #5e3023;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Liquidação de Cosméticos</h1>
+
+  <div class="filtros">
+    <select id="marca">
+      <option value="">Todas as marcas</option>
+      <option value="Natura">Natura</option>
+      <option value="Boticário">Boticário</option>
+      <option value="Avon">Avon</option>
+    </select>
+    <input type="text" id="busca" placeholder="Buscar por nome" />
+    <input type="number" id="precoMin" placeholder="Preço mín." />
+    <input type="number" id="precoMax" placeholder="Preço máx." />
+    <select id="ordenacao">
+      <option value="">Ordenar por</option>
+      <option value="nome-asc">Nome (A-Z)</option>
+      <option value="preco-desc">Maior preço</option>
+      <option value="preco-asc">Menor preço</option>
+    </select>
+    <select id="qtdPorPagina">
+      <option value="20">20 por página</option>
+      <option value="40">40 por página</option>
+      <option value="60">60 por página</option>
+    </select>
+  </div>
+
+  <div class="container" id="produtos"></div>
+  <div class="paginacao" id="paginacao"></div>
+  <div class="rodape">Catálogo inspirado na identidade Natura | Desenvolvido por você 💜</div>
+
+  <script>
+    const sheetID = "1P26E6IzY7wFcbvFVDRiew7QEXUG4iq_c4Ht-E4vOdE0";
+    const sheetName = "Copia-de-Produtos-Precificados-1";
+    const url = `https://opensheet.elk.sh/${sheetID}/${sheetName}`;
+
+    let todosProdutos = [];
+    let paginaAtual = 1;
+
+    const container = document.getElementById("produtos");
+    const paginacao = document.getElementById("paginacao");
+    const marcaSelect = document.getElementById("marca");
+    const buscaInput = document.getElementById("busca");
+    const precoMin = document.getElementById("precoMin");
+    const precoMax = document.getElementById("precoMax");
+    const ordenacaoSelect = document.getElementById("ordenacao");
+    const qtdPorPaginaSelect = document.getElementById("qtdPorPagina");
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        todosProdutos = data.filter(p => {
+          const estoque = p["Estoque"]?.trim();
+          return estoque && parseFloat(estoque.replace(",", ".")) > 0;
+        });
+        aplicarFiltros();
+      })
+      .catch(err => {
+        container.innerHTML = "Erro ao carregar os produtos.";
+        console.error(err);
+      });
+
+    function aplicarFiltros() {
+      const termo = buscaInput.value.toLowerCase();
+      const marca = marcaSelect.value;
+      const min = parseFloat(precoMin.value);
+      const max = parseFloat(precoMax.value);
+      const ordem = ordenacaoSelect.value;
+      const qtdPorPagina = parseInt(qtdPorPaginaSelect.value);
+
+      let produtosFiltrados = todosProdutos.filter(p => {
+        const nome = p["Nome do Produto"].toLowerCase();
+        const preco = parseFloat(p["Por"].replace(",", "."));
+        return (!marca || p["Marca"] === marca) &&
+          (!termo || nome.includes(termo)) &&
+          (!isNaN(min) ? preco >= min : true) &&
+          (!isNaN(max) ? preco <= max : true);
+      });
+
+      // Ordenação
+      produtosFiltrados.sort((a, b) => {
+        if (ordem === "nome-asc") {
+          return a["Nome do Produto"].localeCompare(b["Nome do Produto"]);
+        } else if (ordem === "preco-asc") {
+          return parseFloat(a["Por"].replace(",", ".")) - parseFloat(b["Por"].replace(",", "."));
+        } else if (ordem === "preco-desc") {
+          return parseFloat(b["Por"].replace(",", ".")) - parseFloat(a["Por"].replace(",", "."));
+        }
+        return 0;
+      });
+
+      const totalPaginas = Math.ceil(produtosFiltrados.length / qtdPorPagina);
+      if (paginaAtual > totalPaginas) paginaAtual = 1;
+
+      const inicio = (paginaAtual - 1) * qtdPorPagina;
+      const fim = inicio + qtdPorPagina;
+      const produtosPaginados = produtosFiltrados.slice(inicio, fim);
+
+      renderizarProdutos(produtosPaginados);
+      renderizarPaginacao(totalPaginas);
+    }
+
+    function renderizarProdutos(lista) {
+      container.innerHTML = "";
+      lista.forEach(produto => {
+        const nome = produto["Nome do Produto"];
+        const marca = produto["Marca"];
+        const imagem = produto["Imagem Produto"];
+        const precoDe = parseFloat(produto["De"].replace(",", "."));
+        const precoPor = parseFloat(produto["Por"].replace(",", "."));
+        const estoque = produto["Estoque"];
+        const desconto = Math.round(((precoDe - precoPor) / precoDe) * 100);
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="desconto-badge">-${desconto}%</div>
+          ${imagem ? `<img src="${imagem}" alt="${nome}" />` : ""}
+          <h3>${nome}</h3>
+          <p class="marca">${marca}</p>
+          <p class="preco-de"><strong>De:</strong> <s>R$ ${precoDe.toFixed(2).replace(".", ",")}</s></p>
+          <p class="preco-por"><strong>Por:</strong> R$ ${precoPor.toFixed(2).replace(".", ",")}</p>
+          <p><strong>Estoque:</strong> ${estoque}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderizarPaginacao(total) {
+      paginacao.innerHTML = "";
+      for (let i = 1; i <= total; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        if (i === paginaAtual) btn.classList.add("active");
+        btn.onclick = () => {
+          paginaAtual = i;
+          aplicarFiltros();
+        };
+        paginacao.appendChild(btn);
+      }
+    }
+
+    [marcaSelect, buscaInput, precoMin, precoMax, ordenacaoSelect, qtdPorPaginaSelect].forEach(el =>
+      el.addEventListener("input", () => {
+        paginaAtual = 1;
+        aplicarFiltros();
+      })
+    );
+  </script>
+</body>
+
+</html>
